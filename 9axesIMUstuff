@@ -78,10 +78,10 @@ void loop()
   if ((lastPrint + PRINT_SPEED) < millis())
   {
     //printTemp();
-    printAccel(); // Print "A: ax, ay, az"
-    //printMag();   // Print "M: mx, my, mz"          
+    //printAccel(); // Print "A: ax, ay, az"
+    printMag();   // Print "M: mx, my, mz"          
     printAttitude(imu.ay, imu.ax, imu.az,
-                  imu.mx, imu.my, imu.mz,
+                  -imu.mx, -imu.my, imu.mz,
                   -imu.calcGyro(imu.gy), -imu.calcGyro(imu.gx));    
     //printGyro();  // Print "G: gx, gy, gz"       
     Serial.println();
@@ -134,7 +134,7 @@ void printMag()
   Serial.print(imu.calcMag(imu.my), 2);
   Serial.print(", ");
   Serial.print(imu.calcMag(imu.mz), 2);
-  Serial.println(" gauss");
+  //Serial.println(" gauss");
 #elif defined PRINT_RAW
   Serial.print(imu.mx);
   Serial.print(", ");
@@ -155,19 +155,6 @@ void printAttitude(float ax, float ay, float az, float mx, float my, float mz, f
   float roll = atan2(ax, az);
   float pitch = atan2(ay, sqrt(ax * ax + az * az));
 
-  float heading;
-  if (my == 0)
-    heading = (mx < 0) ? PI : 0;
-  else
-    heading = atan2(mx, my);
-
-  heading -= DECLINATION * PI / 180;
-
-  if (heading > PI) heading -= (2 * PI);
-  else if (heading < -PI) heading += (2 * PI);
-
-  // Convert everything from radians to degrees:
-  heading *= 180.0 / PI;
   pitch *= 180.0 / PI;
   roll  *= 180.0 / PI;
 
@@ -180,17 +167,42 @@ void printAttitude(float ax, float ay, float az, float mx, float my, float mz, f
 
   rollG = rollG + gy*dt;
   pitchG = pitchG - gx*dt;
+  
+  rollC = (rollC + gy*dt)*.9 + rollFnew*.1;
+  pitchC = (pitchC - gx*dt)*.9 + pitchFnew*.1;
 
-  rollC = (rollC + gy*dt)*.95 + roll*.05;
-  pitchC = (pitchC - gx*dt)*.95 + pitch*.05;
+  //Conversion deg to rad
+  float rollRad = rollC/360*(2*PI);
+  float pitchRad = pitchC/360*(2*PI);
  
+  //Projection in 3D in radians
+
+  //mx = mx*cos(pitchRad)-my*sin(rollRad)*sin(pitchRad)+mz*cos(rollRad)*sin(pitchRad);
+  //my = my*cos(rollRad)+mz*sin(rollRad);
+
+  //my = my*cos(pitchRad)-mx*sin(rollRad)*sin(pitchRad)+mz*cos(rollRad)*sin(pitchRad);
+  //mx = mx*cos(rollRad)+mz*sin(rollRad);
+
+  float heading;
+  if (my == 0)
+    heading = (mx < 0) ? PI : 0;
+  else
+    heading = atan2(my, mx);
+
+  heading -= DECLINATION * PI / 180;
+
+  if (heading > PI) heading -= (2 * PI);
+  else if (heading < -PI) heading += (2 * PI);
+
+  // Convert everything from radians to degrees:
+  heading *= 180.0 / PI;
 
   Serial.print(", ");
-  Serial.print(roll, 2);
+  Serial.print(roll);
   Serial.print(", ");
-  Serial.print(pitch, 2);
+  Serial.print(pitch);
   Serial.print(", ");
-  Serial.print(heading, 2);
+  Serial.print(heading);
   Serial.print(", ");
   Serial.print(rollFnew);
   Serial.print(", ");
