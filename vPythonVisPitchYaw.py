@@ -50,12 +50,14 @@ while True:
     s=cross(k,y)
     v=cross(s,k)
 
+    vrot=v*cos(-roll)+cross(k,v)*sin(-roll)
+
     frontArrow.axis=k
     sideArrow.axis=s
     upArrow.axis=v
 
     myObj.axis=k
-    myObj.up=v
+    myObj.up=vrot
 
     sideArrow.length=2
     frontArrow.length=4
