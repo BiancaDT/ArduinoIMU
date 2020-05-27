@@ -66,14 +66,14 @@ void loop()
 
   if ((lastPrint + PRINT_SPEED) < millis())
   {
-    float accx = imu.calcAccel(imu.ay);
-    float accy = imu.calcAccel(imu.ax);
-    float accz = imu.calcAccel(imu.az);
+    float accx = -imu.calcAccel(imu.ay);
+    float accy = -imu.calcAccel(imu.ax);
+    float accz = -imu.calcAccel(imu.az);
     float gyrox = imu.calcGyro(imu.gy)* DEG_TO_RAD;
-    float gyroy = imu.calcGyro(imu.gx)* DEG_TO_RAD;
+    float gyroy = -imu.calcGyro(imu.gx)* DEG_TO_RAD;
     float gyroz = imu.calcGyro(imu.gz)* DEG_TO_RAD;
-    float magx = imu.calcMag(imu.my);
-    float magy = imu.calcMag(imu.mx);
+    float magx = -imu.calcMag(imu.mx);
+    float magy = -imu.calcMag(imu.my);
     float magz = imu.calcMag(imu.mz);
          
   deltat = fusion.deltatUpdate();
@@ -82,22 +82,16 @@ void loop()
 
 
   pitchQ = fusion.getPitch();
-  rollQ = fusion.getRoll();    //you could also use getRollRadians() ecc
+  rollQ = fusion.getRoll();    //could also use getRollRadians() ecc
   yawQ = fusion.getYaw();
 
  
-
   Serial.print(pitchQ);
   Serial.print(",");
   Serial.print(rollQ);
   Serial.print(",");
   Serial.println(yawQ);
 
-  delay(200); 
-              
+  delay(200);              
   } 
 }
-
-
-
-
