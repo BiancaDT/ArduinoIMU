@@ -23,8 +23,9 @@ LSM9DS1 imu;
 #define DECLINATION 4.25 // Declination (degrees) in Copenhagen, Denmark
 
 float deltat;
-
 float rollQ, pitchQ, yawQ;
+float q0, q1, q2, q3;
+
 
 static unsigned long lastPrint = 0; // Keep track of print time
 
@@ -43,8 +44,7 @@ void setup()
     Serial.println("Failed to communicate with LSM9DS1.");
     Serial.println("Double-check wiring.");
     while (1);
-  }
-  
+  } 
   imu.calibrate(true);    
   imu.calibrateMag(true);  
 }
@@ -77,21 +77,36 @@ void loop()
     float magz = imu.calcMag(imu.mz);
          
   deltat = fusion.deltatUpdate();
+  
   //fusion.MahonyUpdate(gyrox, gyroy, gyroz, accx, accy, accz, magy, magx, magz, deltat);
   fusion.MadgwickUpdate(gyrox, gyroy, gyroz, accx, accy, accz, magy, magx, magz, deltat);  
-
 
   pitchQ = fusion.getPitch();
   rollQ = fusion.getRoll();    //could also use getRollRadians() ecc
   yawQ = fusion.getYaw();
-
  
+  q0 = fusion.getQuatw();
+  q1 = fusion.getQuatx();
+  q2 = fusion.getQuaty();
+  q3 = fusion.getQuatz();
+
+  float roll = atan2f(q0*q1 + q2*q3, 0.5f - q1*q1 - q2*q2)* RAD_TO_DEG;
+  float pitch = asinf(-2.0f * (q1*q3 - q0*q2))* RAD_TO_DEG;;
+  float yaw = atan2f(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3)* RAD_TO_DEG+180;
+
+  Serial.print("yay quats: ");Serial.print(q0);Serial.print(",");Serial.print(q1);Serial.print(",");Serial.print(q2);Serial.print(",");Serial.print(q3);Serial.print("!");
+
   Serial.print(pitchQ);
+  Serial.print(",");
+  Serial.print(pitch);
   Serial.print(",");
   Serial.print(rollQ);
   Serial.print(",");
-  Serial.println(yawQ);
-
+  Serial.print(roll);
+  Serial.print(",");
+  Serial.print(yawQ);
+  Serial.print(",");
+  Serial.println(yaw);
   delay(200);              
   } 
 }
