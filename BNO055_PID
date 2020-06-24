@@ -1,0 +1,80 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+#include <math.h>
+#include <Servo.h>
+
+Servo pitchServo, rollServo;
+
+float q0, q1, q2, q3;
+
+float kP=.3, kI=.00001, kD=10; 
+
+int timeLast, timeNow, dt;
+
+float rollSP=0; float rollAngle; float rollError=0; float rollErrorLast; float rollErrorDiff; float rollErrorD=0; float rollErrorI=0; float rollServoAngle=90;
+
+float pitchSP=0; float pitchAngle; float pitchError=0; float pitchErrorLast; float pitchErrorDiff; float pitchErrorD=0; float pitchErrorI=0; float pitchServoAngle=90;
+
+#define BNO055_SAMPLERATE_DELAY_MS (100)
+Adafruit_BNO055 bnoIMU = Adafruit_BNO055();
+
+void setup() {
+  // put your setup code here, to run once:
+Serial.begin(115200);
+bnoIMU.begin();
+delay(1000);
+int8_t temp=bnoIMU.getTemp();
+bnoIMU.setExtCrystalUse(true);
+rollServo.attach(2);
+pitchServo.attach(3);
+
+rollServo.write(rollServoAngle);
+delay(20);
+pitchServo.write(pitchServoAngle);
+delay(20);
+
+timeNow=millis();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+uint8_t systemC, gyroC, accelC, magC = 0;
+bnoIMU.getCalibration(&systemC, &gyroC, &accelC, &magC);
+
+imu::Quaternion quat=bnoIMU.getQuat();
+
+q0=quat.w(); q1=quat.x(); q2=quat.y(); q3=quat.z();
+
+rollAngle=atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2));
+pitchAngle=asin(2*(q0*q2-q3*q1));
+
+rollAngle=rollAngle/(2*PI)*360; //rad to deg
+pitchAngle=pitchAngle/(2*PI)*360; //rad to deg
+
+timeLast=timeNow;timeNow=millis();dt=timeNow-timeLast;
+
+rollErrorLast=rollError; rollError=rollSP-rollAngle; rollErrorDiff=rollError-rollErrorLast; rollErrorD=rollErrorDiff/dt; rollErrorI=rollErrorI+rollError*dt;
+
+pitchErrorLast=pitchError;pitchError=pitchSP-pitchAngle;pitchErrorDiff=pitchError-pitchErrorLast;pitchErrorD=pitchErrorDiff/dt;pitchErrorI=pitchErrorI+pitchError*dt;
+
+//if(-2 <rollError <2)
+//{
+//  pid_i = pid_i+(ki*error);  
+//}
+
+rollServoAngle=rollServoAngle+kP*rollError+kD*rollErrorD+kI*rollErrorI;
+rollServo.write(rollServoAngle);
+
+pitchServoAngle=pitchServoAngle+kP*pitchError+kD*pitchErrorD+kI*pitchErrorI;
+pitchServo.write(pitchServoAngle);
+
+Serial.print(rollSP); Serial.print(","); Serial.print(rollAngle);
+Serial.print(",");
+Serial.print(pitchSP); Serial.print(",");Serial.print(pitchAngle);
+Serial.print(",");
+Serial.print(accelC); Serial.print(","); Serial.print(gyroC); Serial.print(","); Serial.print(magC); Serial.print(","); Serial.println(systemC);
+
+delay(BNO055_SAMPLERATE_DELAY_MS);
+}
