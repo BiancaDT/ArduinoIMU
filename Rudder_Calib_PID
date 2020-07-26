@@ -1,0 +1,102 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+#include <math.h>
+#include <Servo.h>
+#include "SensorFusion.h"
+#include "Adafruit_Sensor_Calibration.h"
+
+//gyro rates up to 2000 Hz
+
+Servo rudderServo;
+
+//Adafruit_Sensor_Calibration_EEPROM cal;
+Adafruit_Sensor_Calibration_SDFat cal;
+
+#define DECLINATION 4.25 // Declination (degrees) in Copenhagen, Denmark
+
+SF fusion;
+float deltat;
+float kP=.3, kI=.00001, kD=10; 
+float rollQ, pitchQ, yawQ;
+
+
+float pitchSP=0; float pitchAngle; float pitchError=0; float pitchErrorLast; float pitchErrorDiff; float pitchErrorD=0; float pitchErrorI=0; float pitchServoAngle=90;
+
+
+// global constants for 9 DoF fusion and AHRS (Attitude and Heading Reference System)
+//float GyroMeasError = PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
+//float GyroMeasDrift = PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
+
+#define BNO055_SAMPLERATE_DELAY_MS (1)
+ 
+Adafruit_BNO055 bno = Adafruit_BNO055();
+ 
+void setup() {
+  // put your setup code here, to run once:
+SerialUSB.begin(115200);
+bno.begin();
+delay(1000);
+int8_t temp=bno.getTemp();
+bno.setExtCrystalUse(true);
+
+rudderServo.attach(3);
+
+rudderServo.write(90);
+delay(20);
+
+uint8_t system, gyro, accel, mag = 0;  while(system != 3)  {      bno.getCalibration(&system, &gyro, &accel, &mag);      SerialUSB.print("CALIBRATION: Sys=");      SerialUSB.print(system, DEC);      SerialUSB.print(" Gyro=");      SerialUSB.print(gyro, DEC);      SerialUSB.print(" Accel=");      SerialUSB.print(accel, DEC);      SerialUSB.print(" Mag=");      SerialUSB.println(mag, DEC);      delay(100);  }  SerialUSB.println(""); SerialUSB.println("Calibrated");
+
+SerialUSB.flush();
+}
+ 
+void loop() {
+  // put your main code here, to run repeatedly:
+uint8_t system, gyro, accel, mg = 0;
+bno.getCalibration(&system, &gyro, &accel, &mg);
+
+imu::Vector<3> accR =bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+imu::Vector<3> gyroR =bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+imu::Vector<3> magR =bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+
+float accx = accR.x();
+float accy = accR.y();
+float accz = accR.z();
+float gyrox = gyroR.x()* DEG_TO_RAD;
+float gyroy = gyroR.y()* DEG_TO_RAD;
+float gyroz = gyroR.z()* DEG_TO_RAD;
+float magx = magR.x();
+float magy = magR.y();
+float magz = magR.z();
+
+deltat = fusion.deltatUpdate();
+  //fusion.MahonyUpdate(gyrox, gyroy, gyroz, accx, accy, accz, magx, magy, magz, deltat);
+fusion.MadgwickUpdate(gyrox, gyroy, gyroz, accx, accy, accz, magx, magy, magz, deltat);  
+
+pitchQ = fusion.getPitch();
+rollQ = fusion.getRoll();    //could also use getRollRadians() ecc
+yawQ = fusion.getYaw()-4.25f;
+
+
+pitchErrorLast=pitchError;pitchError=pitchSP-pitchAngle;pitchErrorDiff=pitchError-pitchErrorLast;pitchErrorD=pitchErrorDiff/deltat;pitchErrorI=pitchErrorI+pitchError*deltat;
+
+//SerialUSB.print(accR.x());SerialUSB.print(",");SerialUSB.print(accR.y());SerialUSB.print(",");SerialUSB.print(accR.z());SerialUSB.print(",");
+//SerialUSB.print(gyroR.x());SerialUSB.print(",");SerialUSB.print(gyroR.y());SerialUSB.print(",");SerialUSB.print(gyroR.z());SerialUSB.print(",");
+//SerialUSB.print(magR.x());SerialUSB.print(",");SerialUSB.print(magR.y());SerialUSB.print(",");SerialUSB.print(magR.z());
+//SerialUSB.print(", RPY: ");
+//SerialUSB.print("Accelerometer: ");
+//SerialUSB.print(calibData.accel_offset_x); SerialUSB.print(" ");
+
+
+pitchServoAngle=pitchServoAngle+kP*pitchError+kD*pitchErrorD+kI*pitchErrorI;
+rudderServo.write(pitchServoAngle);
+
+
+SerialUSB.print(rollQ);SerialUSB.print(",");SerialUSB.print(pitchQ);SerialUSB.print(",");SerialUSB.print(yawQ);SerialUSB.print(",");
+SerialUSB.print(", Calib:, ");
+
+SerialUSB.print(accel);SerialUSB.print(",");SerialUSB.print(gyro);SerialUSB.print(",");SerialUSB.print(mg);SerialUSB.print(",");SerialUSB.println(system);
+
+delay(BNO055_SAMPLERATE_DELAY_MS);
+}
