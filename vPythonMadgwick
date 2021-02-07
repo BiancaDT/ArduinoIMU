@@ -44,7 +44,7 @@ while True:
         yaw = float(splitPacket[2]) * toRad
         print("Roll=",roll*toDeg, "Pitch=",pitch*toDeg, "Yaw=",yaw*toDeg)
 
-        rate(40)
+        rate(150)
         k=vector(cos(yaw)*cos(pitch),sin(pitch),sin(yaw)*cos(pitch))
 
         y=vector(0,1,0)
