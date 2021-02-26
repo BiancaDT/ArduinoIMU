@@ -1,0 +1,86 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+#include <math.h>
+float pitchA;
+float rollA;
+float pitchFold=0;
+float pitchFnew;
+float rollFold=0;
+float rollFnew;
+ 
+float pitchG=0;
+float rollG=0;
+ 
+float pitch;
+float roll;
+ 
+float pitchRad;
+float rollRad;
+ 
+float Xm;
+float Ym;
+float yaw;
+ 
+ 
+float dt;
+unsigned long microsOld;
+ 
+#define BNO055_SAMPLERATE_DELAY_MS (100)
+ 
+Adafruit_BNO055 myIMU = Adafruit_BNO055();
+ 
+void setup() {
+  // put your setup code here, to run once:
+SerialUSB.begin(115200);
+myIMU.begin();
+delay(1000);
+int8_t temp=myIMU.getTemp();
+myIMU.setExtCrystalUse(true);
+uint8_t system, gyro, accel, mag = 0;  while(system!= 3 && accel!= 3)  {      myIMU.getCalibration(&system, &gyro, &accel, &mag);      SerialUSB.print("CALIBRATION: Sys=");      SerialUSB.print(system, DEC);      SerialUSB.print(" Gyro=");      SerialUSB.print(gyro, DEC);      SerialUSB.print(" Accel=");      SerialUSB.print(accel, DEC);      SerialUSB.print(" Mag=");      SerialUSB.println(mag, DEC);      delay(100);  }  SerialUSB.println(""); SerialUSB.println("Calibrated");
+microsOld=micros();
+}
+ 
+void loop() {
+  // put your main code here, to run repeatedly:
+uint8_t system, gyro, accel, mg = 0;
+myIMU.getCalibration(&system, &gyro, &accel, &mg);
+imu::Vector<3> acc =myIMU.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+imu::Vector<3> gyr =myIMU.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+imu::Vector<3> mag =myIMU.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+pitchA=-atan2(acc.x()/9.8,acc.z()/9.8)/2/3.141592654*360;
+rollA=-atan2(acc.y()/9.8,acc.z()/9.8)/2/3.141592654*360;
+rollFnew=.95*rollFold+.05*rollA;
+pitchFnew=.95*pitchFold+.05*pitchA;
+ 
+dt=(micros()-microsOld)/1000000.;
+microsOld=micros();
+pitch=(pitch+gyr.y()*dt)*.95+pitchA*.05;
+roll=(roll-gyr.x()*dt)*.95+ rollA*.05;
+pitchG=pitchG+gyr.y()*dt;
+rollG=rollG-gyr.x()*dt;
+ 
+rollRad=roll/360*(2*3.14);
+pitchRad=pitch/360*(2*3.14);
+ 
+Xm=mag.x()*cos(pitchRad)-mag.y()*sin(rollRad)*sin(pitchRad)+mag.z()*cos(rollRad)*sin(pitchRad);
+Ym=mag.y()*cos(rollRad)+mag.z()*sin(rollRad);
+ 
+yaw=atan2(Ym,Xm)/(2*3.14)*360;
+ 
+SerialUSB.print(roll);
+SerialUSB.print(",");
+SerialUSB.print(pitch);
+SerialUSB.print(",");
+SerialUSB.print(yaw);
+SerialUSB.print(", Calib:, ");
+SerialUSB.print(accel);SerialUSB.print(",");SerialUSB.print(gyro);SerialUSB.print(",");SerialUSB.print(mg);SerialUSB.print(",");SerialUSB.println(system);
+
+ 
+rollFold=rollFnew;
+pitchFold=pitchFnew;
+ 
+ 
+delay(BNO055_SAMPLERATE_DELAY_MS);
+}
