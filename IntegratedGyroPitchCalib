@@ -6,11 +6,12 @@
 
 float pitchG=0;
 float rollG=0;
+float yawG=0;
 
 float dt;
 unsigned long microsOld;
 
-#define BNO055_SAMPLERATE_DELAY_MS (100)
+#define BNO055_SAMPLERATE_DELAY_MS (1)
 
 Adafruit_BNO055 myIMU = Adafruit_BNO055();
 
@@ -36,12 +37,14 @@ microsOld=micros();
 
 pitchG=pitchG+gyr.y()*dt;
 rollG=rollG+gyr.x()*dt;
-
+yawG=yawG+gyr.z()*dt;
 
 SerialUSB.print(rollG);
-SerialUSB.print(",");
+SerialUSB.print(" ");
 SerialUSB.print(pitchG);
-SerialUSB.print(", Calib:, ");
+SerialUSB.print(" ");
+SerialUSB.print(yawG);
+SerialUSB.print(" Calib:, ");
 SerialUSB.print(accel);SerialUSB.print(",");SerialUSB.print(gyro);SerialUSB.print(",");SerialUSB.print(mg);SerialUSB.print(",");SerialUSB.println(system);
 
  
